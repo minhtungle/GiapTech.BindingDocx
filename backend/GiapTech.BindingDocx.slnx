@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GiapTech.BindingDocx.Api/GiapTech.BindingDocx.Api.csproj" />
+    <Project Path="src/GiapTech.BindingDocx.Application/GiapTech.BindingDocx.Application.csproj" />
+    <Project Path="src/GiapTech.BindingDocx.Domain/GiapTech.BindingDocx.Domain.csproj" />
+    <Project Path="src/GiapTech.BindingDocx.Infrastructure/GiapTech.BindingDocx.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GiapTech.BindingDocx.Tests/GiapTech.BindingDocx.Tests.csproj" />
+  </Folder>
+</Solution>

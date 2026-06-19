@@ -1,0 +1,12 @@
+using GiapTech.BindingDocx.Domain.Common;
+
+namespace GiapTech.BindingDocx.Domain.Entities;
+
+public class ProfileGroup : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? TemplatePath { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}

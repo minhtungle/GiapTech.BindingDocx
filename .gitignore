@@ -1,0 +1,52 @@
+# ===== .NET / C# =====
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.nupkg
+*.snupkg
+*.log
+logs/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+[Pp]ublish/
+.publish/
+
+# ===== Node / Frontend =====
+node_modules/
+dist/
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.tsbuildinfo
+.vite/
+
+# ===== Storage (runtime data - chỉ ignore nội dung, không ignore folder) =====
+storage/output/*
+storage/templates/*
+!storage/output/.gitkeep
+!storage/templates/.gitkeep
+
+# ===== Docker =====
+docker-compose.override.yml
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# ===== IDE =====
+.vs/
+.vscode/settings.json
+.vscode/*.code-workspace
+.idea/
+*.iml
