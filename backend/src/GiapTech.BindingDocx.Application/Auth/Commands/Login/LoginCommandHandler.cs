@@ -33,7 +33,8 @@ public class LoginCommandHandler(
             DateTime.UtcNow.AddHours(1),
             user.Id,
             user.Username,
-            user.Email
+            user.Email,
+            user.Role
         );
     }
 }

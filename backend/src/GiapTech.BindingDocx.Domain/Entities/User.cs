@@ -10,5 +10,6 @@ public class User : BaseEntity
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; }
     public bool IsActive { get; set; } = true;
+    public string Role { get; set; } = "user";
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

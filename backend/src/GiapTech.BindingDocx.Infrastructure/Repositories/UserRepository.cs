@@ -13,8 +13,8 @@ public class UserRepository(IDbConnectionFactory connectionFactory)
     {
         using var conn = ConnectionFactory.CreateConnection();
         await conn.ExecuteAsync(@"
-            INSERT INTO Users (Id, Username, Email, PasswordHash, RefreshToken, RefreshTokenExpiryTime, IsActive, CreatedAt, UpdatedAt)
-            VALUES (@Id, @Username, @Email, @PasswordHash, @RefreshToken, @RefreshTokenExpiryTime, @IsActive, @CreatedAt, @UpdatedAt)",
+            INSERT INTO Users (Id, Username, Email, PasswordHash, RefreshToken, RefreshTokenExpiryTime, IsActive, Role, CreatedAt, UpdatedAt)
+            VALUES (@Id, @Username, @Email, @PasswordHash, @RefreshToken, @RefreshTokenExpiryTime, @IsActive, @Role, @CreatedAt, @UpdatedAt)",
             entity);
         return entity.Id;
     }
@@ -25,8 +25,53 @@ public class UserRepository(IDbConnectionFactory connectionFactory)
         await conn.ExecuteAsync(@"
             UPDATE Users SET Username=@Username, Email=@Email, PasswordHash=@PasswordHash,
             RefreshToken=@RefreshToken, RefreshTokenExpiryTime=@RefreshTokenExpiryTime,
-            IsActive=@IsActive, UpdatedAt=@UpdatedAt WHERE Id=@Id",
+            IsActive=@IsActive, Role=@Role, UpdatedAt=@UpdatedAt WHERE Id=@Id",
             entity);
+    }
+
+    public async Task<Guid> CreateAsync(User entity, CancellationToken ct = default)
+        => await AddAsync(entity, ct);
+
+    public async Task UpdateProfileAsync(User entity, CancellationToken ct = default)
+    {
+        using var conn = ConnectionFactory.CreateConnection();
+        await conn.ExecuteAsync(@"
+            UPDATE Users SET Username=@Username, Email=@Email, PasswordHash=@PasswordHash,
+            IsActive=@IsActive, Role=@Role, UpdatedAt=GETUTCDATE() WHERE Id=@Id",
+            entity);
+    }
+
+    public async Task<(IEnumerable<User> Items, int Total)> GetPagedAsync(string? search, int skip, int take, CancellationToken ct = default)
+    {
+        using var conn = ConnectionFactory.CreateConnection();
+        var whereClause = string.IsNullOrWhiteSpace(search)
+            ? string.Empty
+            : "WHERE Username LIKE @Search OR Email LIKE @Search";
+        var param = new { Search = $"%{search}%", Skip = skip, Take = take };
+
+        var total = await conn.QuerySingleAsync<int>($"SELECT COUNT(1) FROM Users {whereClause}", param);
+        var items = await conn.QueryAsync<User>(
+            $"SELECT * FROM Users {whereClause} ORDER BY CreatedAt DESC OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY",
+            param);
+        return (items, total);
+    }
+
+    public async Task<bool> UsernameExistsAsync(string username, Guid? excludeId, CancellationToken ct = default)
+    {
+        using var conn = ConnectionFactory.CreateConnection();
+        var sql = excludeId.HasValue
+            ? "SELECT COUNT(1) FROM Users WHERE Username=@Username AND Id<>@ExcludeId"
+            : "SELECT COUNT(1) FROM Users WHERE Username=@Username";
+        return await conn.QuerySingleAsync<int>(sql, new { Username = username, ExcludeId = excludeId }) > 0;
+    }
+
+    public async Task<bool> EmailExistsAsync(string email, Guid? excludeId, CancellationToken ct = default)
+    {
+        using var conn = ConnectionFactory.CreateConnection();
+        var sql = excludeId.HasValue
+            ? "SELECT COUNT(1) FROM Users WHERE Email=@Email AND Id<>@ExcludeId"
+            : "SELECT COUNT(1) FROM Users WHERE Email=@Email";
+        return await conn.QuerySingleAsync<int>(sql, new { Email = email, ExcludeId = excludeId }) > 0;
     }
 
     public async Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default)

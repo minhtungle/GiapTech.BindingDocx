@@ -8,6 +8,8 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  UserOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { profileGroupService } from '../../services/profileGroupService';
@@ -30,6 +32,7 @@ export default function Toolbar() {
 
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
 
   const { data: groups = [] } = useQuery({
     queryKey: ['profileGroups'],
@@ -54,7 +57,10 @@ export default function Toolbar() {
   };
 
   const userMenuItems: MenuProps['items'] = [
-    { key: 'logout', label: 'Đăng xuất', icon: <LogoutOutlined />, onClick: handleLogout },
+    { key: 'profile', label: 'Hồ sơ cá nhân', icon: <UserOutlined />, onClick: () => navigate('/profile') },
+    ...(isAdmin ? [{ key: 'admin', label: 'Trang quản trị', icon: <CrownOutlined />, onClick: () => navigate('/admin') }] : []),
+    { type: 'divider' as const },
+    { key: 'logout', label: 'Đăng xuất', icon: <LogoutOutlined />, danger: true, onClick: handleLogout },
   ];
 
   return (

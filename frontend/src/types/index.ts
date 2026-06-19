@@ -5,6 +5,7 @@ export interface AuthResponse {
   userId: string;
   username: string;
   email: string;
+  role: string;
 }
 
 export interface ApiResponse<T> {
@@ -36,6 +37,7 @@ export interface TokenPackage {
   tokenAmount: number;
   pricePerToken: number;
   totalPrice: number;
+  isActive: boolean;
   sortOrder: number;
 }
 
@@ -55,4 +57,26 @@ export interface PagedResult<T> {
   totalPages: number;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
+}
+
+// Admin types
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  currentToken: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminTokenTransaction {
+  id: string;
+  userId: string;
+  username: string;
+  type: string;
+  amount: number;
+  description?: string;
+  createdAt: string;
 }

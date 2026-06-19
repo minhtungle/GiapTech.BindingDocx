@@ -6,5 +6,6 @@ public record AuthResponse(
     DateTime ExpiresAt,
     Guid UserId,
     string Username,
-    string Email
+    string Email,
+    string Role
 );

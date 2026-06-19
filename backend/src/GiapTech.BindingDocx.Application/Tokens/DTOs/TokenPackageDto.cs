@@ -6,5 +6,6 @@ public record TokenPackageDto(
     int TokenAmount,
     decimal PricePerToken,
     decimal TotalPrice,
+    bool IsActive,
     int SortOrder
 );

@@ -1,14 +1,18 @@
 using System.Data;
 using Dapper;
 using GiapTech.BindingDocx.Domain.Interfaces;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace GiapTech.BindingDocx.Infrastructure.Data;
 
-public class DatabaseMigrator(IDbConnectionFactory connectionFactory, ILogger<DatabaseMigrator> logger)
+public class DatabaseMigrator(IDbConnectionFactory connectionFactory, IConfiguration configuration, ILogger<DatabaseMigrator> logger)
 {
     public async Task MigrateAsync()
     {
+        await EnsureDatabaseCreatedAsync();
+
         using var connection = connectionFactory.CreateConnection();
         connection.Open();
 
@@ -18,6 +22,27 @@ public class DatabaseMigrator(IDbConnectionFactory connectionFactory, ILogger<Da
         await RunMigrationsAsync(connection);
 
         logger.LogInformation("Database migrations completed.");
+    }
+
+    private async Task EnsureDatabaseCreatedAsync()
+    {
+        var originalCs = configuration.GetConnectionString("DefaultConnection")!;
+        var builder = new SqlConnectionStringBuilder(originalCs);
+        var dbName = builder.InitialCatalog;
+        builder.InitialCatalog = "master";
+
+        using var masterConnection = new SqlConnection(builder.ConnectionString);
+        await masterConnection.OpenAsync();
+
+        var exists = await masterConnection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(1) FROM sys.databases WHERE name = @name", new { name = dbName });
+
+        if (exists == 0)
+        {
+            logger.LogInformation("Creating database {DbName}...", dbName);
+            await masterConnection.ExecuteAsync($"CREATE DATABASE [{dbName}]");
+            logger.LogInformation("Database {DbName} created.", dbName);
+        }
     }
 
     private static async Task CreateMigrationsTableAsync(IDbConnection connection)
@@ -72,6 +97,7 @@ public class DatabaseMigrator(IDbConnectionFactory connectionFactory, ILogger<Da
     {
         yield return ("001_InitialSchema", Migration001_InitialSchema);
         yield return ("002_SeedData", Migration002_SeedData);
+        yield return ("003_AddRoleToUsers", Migration003_AddRoleToUsers);
     }
 
     private const string Migration001_InitialSchema = @"
@@ -156,10 +182,17 @@ CREATE TABLE TokenPackages (
 )
 ";
 
+    private const string Migration003_AddRoleToUsers = @"
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'Role')
+    ALTER TABLE Users ADD Role NVARCHAR(20) NOT NULL DEFAULT 'user'
+GO
+UPDATE Users SET Role = 'admin' WHERE Username = 'admin'
+";
+
     private const string Migration002_SeedData = @"
 DECLARE @AdminId UNIQUEIDENTIFIER = NEWID()
 INSERT INTO Users (Id, Username, Email, PasswordHash, IsActive)
-VALUES (@AdminId, 'admin', 'admin@giaptech.vn', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGHTGLnAZiVi1kT7XfyrMQG1mxO', 1)
+VALUES (@AdminId, 'admin', 'admin@giaptech.vn', '$2a$12$AqAevrmF12xCxFCQg5MPV.R9XHWCfK9aPLHjrFxQZpbx.zb2TtyLC', 1)
 GO
 INSERT INTO UserTokens (UserId, CurrentToken)
 SELECT TOP 1 Id, 100 FROM Users WHERE Username = 'admin'

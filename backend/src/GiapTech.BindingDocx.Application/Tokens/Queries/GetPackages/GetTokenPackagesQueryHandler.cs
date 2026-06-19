@@ -17,6 +17,7 @@ public class GetTokenPackagesQueryHandler(ITokenRepository tokenRepository)
             p.TokenAmount,
             p.PricePerToken,
             p.TotalPrice,
+            p.IsActive,
             p.SortOrder
         ));
     }
