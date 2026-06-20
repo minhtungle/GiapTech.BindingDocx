@@ -8,6 +8,7 @@ using GiapTech.BindingDocx.Application.Workspace.Interfaces;
 using GiapTech.BindingDocx.Application.Workspace.Queries.ExportTemplate;
 using GiapTech.BindingDocx.Application.Workspace.Queries.GetGroupKeys;
 using GiapTech.BindingDocx.Application.Workspace.Queries.GetGroups;
+using GiapTech.BindingDocx.Application.Workspace.Queries.PreviewRendered;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -88,8 +89,36 @@ public class WorkspaceController(IMediator mediator, ICurrentUserService current
         try
         {
             var zipBytes = await mediator.Send(
-                new GenerateFilesCommand(groupId, userId, request.SingleFields, request.TableData), ct);
+                new GenerateFilesCommand(
+                    groupId, userId,
+                    request.SyncMode,
+                    request.SingleFields,
+                    request.SingleFieldsByFile,
+                    request.TableData), ct);
             return File(zipBytes, "application/zip", $"{groupId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.zip");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse.Fail(ex.Message));
+        }
+    }
+
+    [HttpPost("groups/{groupId}/files/{fileName}/preview-rendered")]
+    public async Task<IActionResult> PreviewRendered(string groupId, string fileName,
+        [FromBody] PreviewRenderedRequestDto request, CancellationToken ct)
+    {
+        if (Path.GetFileName(fileName) != fileName || groupId.Contains('/') || groupId.Contains('\\'))
+            return BadRequest();
+
+        try
+        {
+            var (bytes, contentType, outFileName) = await mediator.Send(
+                new PreviewRenderedQuery(groupId, fileName, request.SingleFields, request.TableData), ct);
+            return File(bytes, contentType, outFileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound();
         }
         catch (InvalidOperationException ex)
         {
@@ -99,6 +128,14 @@ public class WorkspaceController(IMediator mediator, ICurrentUserService current
 }
 
 public class GenerateFilesRequestDto
+{
+    public bool SyncMode { get; set; } = true;
+    public Dictionary<string, string> SingleFields { get; set; } = [];
+    public Dictionary<string, Dictionary<string, string>> SingleFieldsByFile { get; set; } = [];
+    public Dictionary<string, List<Dictionary<string, string>>> TableData { get; set; } = [];
+}
+
+public class PreviewRenderedRequestDto
 {
     public Dictionary<string, string> SingleFields { get; set; } = [];
     public Dictionary<string, List<Dictionary<string, string>>> TableData { get; set; } = [];

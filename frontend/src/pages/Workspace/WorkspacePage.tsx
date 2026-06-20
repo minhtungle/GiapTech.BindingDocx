@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './WorkspacePage.css';
 import { Tabs, Empty, Button, Space, Typography, Tag, Spin, message, Tooltip } from 'antd';
 import {
   FormOutlined,
@@ -14,7 +15,10 @@ import { workspaceService } from '../../services/workspaceService';
 const { Text } = Typography;
 
 export default function WorkspacePage() {
-  const { selectedGroup, selectedGroupId, activeTab, setActiveTab, formData, totalRows, keysLoading } = useAppStore();
+  const {
+    selectedGroup, selectedGroupId, activeTab, setActiveTab,
+    formData, totalRows, keysLoading, syncEnabled, getMergedSingleFields,
+  } = useAppStore();
   const [generating, setGenerating] = useState(false);
 
   if (!selectedGroup || !selectedGroupId) {
@@ -34,8 +38,11 @@ export default function WorkspacePage() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      const mergedSingleFields = getMergedSingleFields();
       await workspaceService.generateFiles(selectedGroupId, {
-        singleFields: formData.singleFields,
+        syncMode: syncEnabled,
+        singleFields: syncEnabled ? mergedSingleFields : {},
+        singleFieldsByFile: syncEnabled ? {} : formData.singleFieldsByFile,
         tableData: formData.tableData,
       });
       message.success('Xuất file thành công! File ZIP đang được tải về.');
@@ -50,7 +57,9 @@ export default function WorkspacePage() {
 
   const tokenCost = totalRows;
   const hasAnyData =
-    Object.values(formData.singleFields).some((v) => v?.trim()) ||
+    Object.values(formData.singleFieldsByFile).some((fields) =>
+      Object.values(fields).some((v) => v?.trim())
+    ) ||
     Object.values(formData.tableData).some((rows) => rows.length > 0);
 
   const items = [
@@ -97,7 +106,7 @@ export default function WorkspacePage() {
         </Space>
       </div>
 
-      {/* Loading banner — hiển thị trên tab bar khi đang fetch keys */}
+      {/* Loading banner */}
       {keysLoading && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
@@ -111,16 +120,14 @@ export default function WorkspacePage() {
       )}
 
       {/* Tabs */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as 'keys' | 'preview')}
-          items={items}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-          tabBarStyle={{ marginBottom: 0, padding: '0 16px', flexShrink: 0 }}
-          tabBarExtraContent={null}
-        />
-      </div>
+      <Tabs
+        className="workspace-tabs"
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as 'keys' | 'preview')}
+        items={items}
+        tabBarStyle={{ marginBottom: 0, padding: '0 16px' }}
+        tabBarExtraContent={null}
+      />
 
       {/* Fullscreen loading overlay when generating ZIP */}
       {generating && (
@@ -132,7 +139,7 @@ export default function WorkspacePage() {
         />
       )}
 
-      {/* Footer: token info + export button */}
+      {/* Footer */}
       <div
         style={{
           padding: '10px 16px',

@@ -4,6 +4,6 @@ public interface ITemplateRenderer
 {
     byte[] RenderDocx(string templatePath, Dictionary<string, string> data);
     byte[] RenderXlsx(string templatePath, Dictionary<string, string> singleFields,
-        List<Dictionary<string, string>>? tableData = null);
+        Dictionary<string, List<Dictionary<string, string>>>? tableDataBySheet = null);
     byte[] CreateZip(Dictionary<string, byte[]> files);
 }

@@ -30,10 +30,10 @@ public class ExcelTemplateGenerator : IExcelTemplateGenerator
         }
         ws.SheetView.FreezeRows(1);
 
-        // One sheet per xlsx table file
+        // One sheet per xlsx table file — sheet named after TableKey base so ExcelDataParser matches
         foreach (var tableFile in keys.TableFiles)
         {
-            var baseName = Path.GetFileNameWithoutExtension(tableFile.FileName);
+            var baseName = Path.GetFileNameWithoutExtension(tableFile.TableKey);
             var sheetName = baseName.Length > 31 ? baseName[..31] : baseName;
             var tws = wb.Worksheets.Add(sheetName);
 

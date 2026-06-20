@@ -1,5 +1,8 @@
 import { api } from './api';
-import type { WorkspaceGroup, GroupKeys, ImportDataResult, GenerateFilesRequest } from '../types/workspace';
+import type {
+  WorkspaceGroup, GroupKeys, ImportDataResult,
+  GenerateFilesRequest, PreviewRenderedRequest,
+} from '../types/workspace';
 import type { ApiResponse } from '../types';
 
 const BASE = '/workspace';
@@ -18,6 +21,19 @@ export const workspaceService = {
   getFilePreview: async (groupId: string, fileName: string): Promise<Blob> => {
     const { data } = await api.get(
       `${BASE}/groups/${groupId}/files/${encodeURIComponent(fileName)}`,
+      { responseType: 'blob' }
+    );
+    return data as Blob;
+  },
+
+  previewRendered: async (
+    groupId: string,
+    fileName: string,
+    request: PreviewRenderedRequest
+  ): Promise<Blob> => {
+    const { data } = await api.post(
+      `${BASE}/groups/${groupId}/files/${encodeURIComponent(fileName)}/preview-rendered`,
+      request,
       { responseType: 'blob' }
     );
     return data as Blob;

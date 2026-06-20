@@ -35,28 +35,39 @@ public class TemplateKeyExtractor : ITemplateKeyExtractor
                     FileName = Path.GetFileName(file),
                     DisplayName = Path.GetFileNameWithoutExtension(file).Replace("_", " "),
                     FileType = "docx",
-                    KeyCount = keys.Count
+                    KeyCount = keys.Count,
+                    Keys = keys
                 });
             }
             else if (ext == ".xlsx")
             {
-                var (singles, table) = ExtractXlsxKeys(file);
+                var (singles, tables) = ExtractXlsxKeys(file);
                 var singleList = singles.ToList();
                 foreach (var key in singleList) singleFields.Add(key);
-                if (table != null) tableFiles.Add(table);
+                tableFiles.AddRange(tables);
+
+                var allXlsxKeys = singleList
+                    .Concat(tables.SelectMany(t => t.Columns))
+                    .Distinct()
+                    .ToList();
+
                 fileInfos.Add(new TemplateFileDto
                 {
                     FileName = Path.GetFileName(file),
                     DisplayName = Path.GetFileNameWithoutExtension(file).Replace("_", " "),
                     FileType = "xlsx",
-                    KeyCount = table?.Columns.Count ?? singleList.Count
+                    KeyCount = allXlsxKeys.Count,
+                    Keys = singleList
                 });
             }
         }
 
-        // Remove table columns from single fields (table keys are handled separately)
         var tableColumns = tableFiles.SelectMany(t => t.Columns).ToHashSet();
         var cleanedSingleFields = singleFields.Where(k => !tableColumns.Contains(k)).ToList();
+
+        // Remove table column keys from each docx file's Keys as well
+        foreach (var fi in fileInfos.Where(f => f.FileType == "docx"))
+            fi.Keys = fi.Keys.Where(k => !tableColumns.Contains(k)).ToList();
 
         return new GroupKeysDto
         {
@@ -74,7 +85,6 @@ public class TemplateKeyExtractor : ITemplateKeyExtractor
             using var doc = WordprocessingDocument.Open(filePath, false);
             var body = doc.MainDocumentPart!.Document.Body!;
 
-            // Merge text runs per paragraph then extract keys
             foreach (var para in body.Descendants<Paragraph>())
             {
                 var text = string.Concat(para.Descendants<Text>().Select(t => t.Text));
@@ -82,7 +92,6 @@ public class TemplateKeyExtractor : ITemplateKeyExtractor
                     keys.Add(m.Groups[1].Value);
             }
 
-            // Headers and footers
             foreach (var headerPart in doc.MainDocumentPart.HeaderParts)
             {
                 var text = string.Concat(headerPart.Header.Descendants<Text>().Select(t => t.Text));
@@ -100,10 +109,10 @@ public class TemplateKeyExtractor : ITemplateKeyExtractor
         return keys;
     }
 
-    private (IEnumerable<string> Singles, TableFileInfoDto? Table) ExtractXlsxKeys(string filePath)
+    private (IEnumerable<string> Singles, List<TableFileInfoDto> Tables) ExtractXlsxKeys(string filePath)
     {
         var singles = new HashSet<string>();
-        TableFileInfoDto? tableInfo = null;
+        var tables = new List<TableFileInfoDto>();
 
         try
         {
@@ -111,6 +120,7 @@ public class TemplateKeyExtractor : ITemplateKeyExtractor
             foreach (var ws in wb.Worksheets)
             {
                 var tableColumns = new List<string>();
+                var sheetSingles = new HashSet<string>();
 
                 foreach (var row in ws.RowsUsed())
                 {
@@ -129,24 +139,43 @@ public class TemplateKeyExtractor : ITemplateKeyExtractor
                     else if (keyCells.Count == 1)
                     {
                         var m = KeyPattern.Match(keyCells[0].Value.ToString() ?? "");
-                        if (m.Success) singles.Add(m.Groups[1].Value);
+                        if (m.Success) sheetSingles.Add(m.Groups[1].Value);
                     }
                 }
 
-                if (tableColumns.Count > 0 && tableInfo == null)
+                foreach (var k in sheetSingles) singles.Add(k);
+
+                if (tableColumns.Count > 0)
                 {
-                    tableInfo = new TableFileInfoDto
+                    tables.Add(new TableFileInfoDto
                     {
                         FileName = Path.GetFileName(filePath),
-                        DisplayName = Path.GetFileNameWithoutExtension(filePath).Replace("_", " "),
                         SheetName = ws.Name,
                         Columns = tableColumns
-                    };
+                    });
                 }
             }
         }
         catch { /* skip unreadable files */ }
 
-        return (singles, tableInfo);
+        // Assign DisplayName and TableKey based on count
+        var displayBase = Path.GetFileNameWithoutExtension(filePath).Replace("_", " ");
+        var fileBase = Path.GetFileNameWithoutExtension(filePath);
+
+        if (tables.Count == 1)
+        {
+            tables[0].DisplayName = displayBase;
+            tables[0].TableKey = Path.GetFileName(filePath);
+        }
+        else
+        {
+            for (int i = 0; i < tables.Count; i++)
+            {
+                tables[i].DisplayName = $"{displayBase} - Bảng {i + 1}";
+                tables[i].TableKey = $"{fileBase}_bang_{i + 1}.xlsx";
+            }
+        }
+
+        return (singles, tables);
     }
 }

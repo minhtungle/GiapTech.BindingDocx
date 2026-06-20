@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Select, Spin, Empty, Tag, Tooltip, Button } from 'antd';
 import {
   FileWordOutlined,
   FileExcelOutlined,
-  LockOutlined,
   ReloadOutlined,
   FolderOpenOutlined,
   EyeOutlined,
@@ -11,7 +10,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { workspaceService } from '../../services/workspaceService';
 import { useAppStore } from '../../stores/appStore';
-import type { WorkspaceGroup } from '../../types/workspace';
 import FilePreviewModal from '../FilePreview/FilePreviewModal';
 
 export default function Sidebar() {
@@ -24,6 +22,18 @@ export default function Sidebar() {
   });
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId);
+
+  // Auto-select first available group, or reload keys if group already set but keys missing (after refresh)
+  useEffect(() => {
+    if (groups.length === 0) return;
+    if (!selectedGroupId) {
+      const first = groups.find((g) => g.isAvailable);
+      if (first) handleGroupChange(first.id);
+    } else if (!groupKeys && !keysLoading) {
+      handleGroupChange(selectedGroupId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
 
   const handleGroupChange = async (groupId: string) => {
     const group = groups.find((g) => g.id === groupId);
@@ -81,20 +91,11 @@ export default function Sidebar() {
             placeholder="Chọn nhóm..."
             value={selectedGroupId ?? undefined}
             onChange={handleGroupChange}
-            options={groups.map((g: WorkspaceGroup) => ({
+            options={groups.map((g) => ({
               value: g.id,
-              label: g.name,
+              label: g.isAvailable ? g.name : `🔒 ${g.name}`,
               disabled: !g.isAvailable,
             }))}
-            optionRender={(option) => {
-              const group = groups.find((g) => g.id === option.value);
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ color: group?.isAvailable ? undefined : '#bfbfbf' }}>{option.label}</span>
-                  {!group?.isAvailable && <LockOutlined style={{ color: '#bfbfbf', fontSize: 11 }} />}
-                </div>
-              );
-            }}
           />
         )}
       </div>

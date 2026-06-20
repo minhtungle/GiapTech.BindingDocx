@@ -6,4 +6,5 @@ public class TemplateFileDto
     public string DisplayName { get; set; } = "";
     public string FileType { get; set; } = "";
     public int KeyCount { get; set; }
+    public List<string> Keys { get; set; } = [];
 }

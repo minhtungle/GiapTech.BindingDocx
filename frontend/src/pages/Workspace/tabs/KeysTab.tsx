@@ -1,22 +1,12 @@
 import { useRef, useState } from 'react';
 import {
-  Button,
-  Form,
-  Input,
-  Table,
-  Typography,
-  Divider,
-  Space,
-  Tag,
-  message,
-  Empty,
-  Spin,
+  Button, Collapse, Form, Input, Table, Typography,
+  Space, Tag, message, Empty, Spin, Switch, Modal,
 } from 'antd';
 import {
-  DownloadOutlined,
-  UploadOutlined,
-  TableOutlined,
-  InfoCircleOutlined,
+  DownloadOutlined, UploadOutlined, TableOutlined,
+  InfoCircleOutlined, FileWordOutlined, FileExcelOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
 import { useAppStore } from '../../../stores/appStore';
@@ -30,12 +20,9 @@ interface KeysTabProps {
 
 export default function KeysTab({ groupId }: KeysTabProps) {
   const {
-    groupKeys,
-    formData,
-    setSingleField,
-    setAllSingleFields,
-    setTableData,
-    setTotalRows,
+    groupKeys, formData, syncEnabled,
+    setSingleField, setAllSingleFields, setTableData,
+    setTotalRows, setSyncEnabled,
   } = useAppStore();
 
   const [exportingTemplate, setExportingTemplate] = useState(false);
@@ -73,8 +60,8 @@ export default function KeysTab({ groupId }: KeysTabProps) {
     try {
       const result = await workspaceService.importData(groupId, file);
       setAllSingleFields(result.singleFields);
-      for (const [fileName, rows] of Object.entries(result.tableData)) {
-        setTableData(fileName, rows);
+      for (const [tableKey, rows] of Object.entries(result.tableData)) {
+        setTableData(tableKey, rows);
       }
       const rowCount = Object.values(result.tableData).reduce((s, r) => s + r.length, 0);
       setTotalRows(Math.max(1, rowCount));
@@ -86,135 +73,184 @@ export default function KeysTab({ groupId }: KeysTabProps) {
     }
   };
 
-  const hasData = Object.keys(formData.singleFields).some((k) => formData.singleFields[k]) ||
-    Object.values(formData.tableData).some((rows) => rows.length > 0);
+  const handleSyncToggle = (checked: boolean) => {
+    if (!checked) {
+      Modal.confirm({
+        title: 'Tắt đồng bộ dữ liệu?',
+        content: 'Khi tắt đồng bộ, mỗi file sẽ có dữ liệu riêng. Dữ liệu hiện tại sẽ được giữ nguyên theo từng file.',
+        okText: 'Tắt đồng bộ',
+        cancelText: 'Huỷ',
+        onOk: () => setSyncEnabled(false),
+      });
+    } else {
+      setSyncEnabled(true);
+    }
+  };
+
+  // Build per-file key panels
+  const filePanels = groupKeys.files.map((file) => {
+    const isDocx = file.fileType === 'docx';
+    const fileFields = formData.singleFieldsByFile[file.fileName] ?? {};
+
+    // Tables that belong to this file
+    const fileTables = groupKeys.tableFiles.filter((t) => t.fileName === file.fileName);
+
+    const hasKeys = file.keys.length > 0 || fileTables.length > 0;
+
+    return {
+      key: file.fileName,
+      label: (
+        <Space size={6}>
+          {isDocx
+            ? <FileWordOutlined style={{ color: '#2b579a' }} />
+            : <FileExcelOutlined style={{ color: '#217346' }} />}
+          <Text strong style={{ fontSize: 13 }}>{file.displayName}</Text>
+          <Tag color={isDocx ? 'blue' : 'green'} style={{ fontSize: 10, padding: '0 4px' }}>
+            {file.fileType.toUpperCase()}
+          </Tag>
+          {file.keys.length > 0 && (
+            <Tag color="default" style={{ fontSize: 11 }}>
+              {file.keys.length} trường
+            </Tag>
+          )}
+          {fileTables.length > 0 && (
+            <Tag color="cyan" style={{ fontSize: 11 }}>
+              {fileTables.length} bảng
+            </Tag>
+          )}
+        </Space>
+      ),
+      children: !hasKeys ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="File này không có key nào" style={{ margin: '8px 0' }} />
+      ) : (
+        <div>
+          {/* Single fields for this file */}
+          {file.keys.length > 0 && (
+            <Form layout="vertical" size="small">
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: '0 24px',
+              }}>
+                {file.keys.map((key) => (
+                  <Form.Item
+                    key={key}
+                    label={<Text style={{ fontSize: 12, fontFamily: 'monospace', color: '#595959' }}>{key}</Text>}
+                    style={{ marginBottom: 10 }}
+                  >
+                    <Input
+                      value={fileFields[key] ?? ''}
+                      onChange={(e) => setSingleField(file.fileName, key, e.target.value)}
+                      placeholder={`Nhập ${key}...`}
+                      allowClear
+                    />
+                  </Form.Item>
+                ))}
+              </div>
+            </Form>
+          )}
+
+          {/* Tables for this file */}
+          {fileTables.map((tableFile) => {
+            const rows = formData.tableData[tableFile.tableKey] ?? [];
+            const columns: ColumnType<Record<string, unknown>>[] = tableFile.columns.map((col) => ({
+              title: <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{col}</span>,
+              dataIndex: col,
+              key: col,
+              width: 120,
+              ellipsis: true,
+              render: (val: unknown) => (val as string) || <Text type="secondary">—</Text>,
+            }));
+
+            return (
+              <div key={tableFile.tableKey} style={{ marginBottom: 16, marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <TableOutlined style={{ color: '#217346' }} />
+                  <Text strong style={{ fontSize: 12 }}>{tableFile.displayName}</Text>
+                  <Tag color={rows.length > 0 ? 'green' : 'default'} style={{ fontSize: 11 }}>
+                    {rows.length > 0 ? `${rows.length} dòng` : 'Chưa có dữ liệu'}
+                  </Tag>
+                </div>
+                {rows.length === 0 ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+                        <InfoCircleOutlined style={{ marginRight: 4 }} />
+                        Xuất Excel mẫu → điền dữ liệu → Import
+                      </span>
+                    }
+                    style={{ margin: '8px 0' }}
+                  />
+                ) : (
+                  <Table
+                    columns={columns}
+                    dataSource={rows.map((r, i) => ({ ...r, _key: i }))}
+                    rowKey="_key"
+                    size="small"
+                    scroll={{ x: 'max-content' }}
+                    pagination={rows.length > 10 ? { pageSize: 10, size: 'small' } : false}
+                    style={{ fontSize: 12 }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ),
+    };
+  });
 
   return (
     <div style={{ padding: '12px 16px', height: '100%', overflowY: 'auto' }}>
-      {/* Action buttons */}
-      <Space style={{ marginBottom: 16 }}>
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={handleExportTemplate}
-          loading={exportingTemplate}
-        >
-          Xuất Excel mẫu
-        </Button>
-        <Button
-          icon={<UploadOutlined />}
-          type={hasData ? 'default' : 'primary'}
-          onClick={handleImportClick}
-          loading={importingData}
-        >
-          Import Excel đã điền
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-      </Space>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Space>
+          <Button icon={<DownloadOutlined />} onClick={handleExportTemplate} loading={exportingTemplate}>
+            Xuất Excel mẫu
+          </Button>
+          <Button
+            icon={<UploadOutlined />}
+            type="primary"
+            onClick={handleImportClick}
+            loading={importingData}
+          >
+            Import Excel đã điền
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </Space>
 
-      {/* Single fields */}
-      {groupKeys.singleFields.length > 0 && (
-        <>
-          <Divider style={{ marginTop: 0 }}>
-            <Text strong style={{ fontSize: 13 }}>
-              Thông tin chung
-              <Tag color="blue" style={{ marginLeft: 8, fontSize: 11 }}>
-                {groupKeys.singleFields.length} trường
-              </Tag>
-            </Text>
-          </Divider>
+        <Space size={8} style={{ fontSize: 13 }}>
+          <SyncOutlined style={{ color: syncEnabled ? '#1677ff' : '#bfbfbf' }} />
+          <Text style={{ fontSize: 13 }}>Đồng bộ dữ liệu</Text>
+          <Switch
+            checked={syncEnabled}
+            onChange={handleSyncToggle}
+            size="small"
+          />
+          {syncEnabled && (
+            <Tag color="blue" style={{ fontSize: 11, marginLeft: 2 }}>
+              Dữ liệu chung sẽ điền vào tất cả file
+            </Tag>
+          )}
+        </Space>
+      </div>
 
-          <Form layout="vertical" size="small">
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '0 24px',
-              }}
-            >
-              {groupKeys.singleFields.map((field) => (
-                <Form.Item
-                  key={field}
-                  label={
-                    <Text style={{ fontSize: 12, fontFamily: 'monospace', color: '#595959' }}>
-                      {field}
-                    </Text>
-                  }
-                  style={{ marginBottom: 12 }}
-                >
-                  <Input
-                    value={formData.singleFields[field] ?? ''}
-                    onChange={(e) => setSingleField(field, e.target.value)}
-                    placeholder={`Nhập ${field}...`}
-                    allowClear
-                  />
-                </Form.Item>
-              ))}
-            </div>
-          </Form>
-        </>
-      )}
-
-      {/* Table files */}
-      {groupKeys.tableFiles.map((tableFile) => {
-        const rows = formData.tableData[tableFile.fileName] ?? [];
-
-        const columns: ColumnType<Record<string, unknown>>[] = tableFile.columns.map((col) => ({
-          title: <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{col}</span>,
-          dataIndex: col,
-          key: col,
-          width: 120,
-          ellipsis: true,
-          render: (val: unknown) => (val as string) || <Text type="secondary">—</Text>,
-        }));
-
-        return (
-          <div key={tableFile.fileName} style={{ marginBottom: 24 }}>
-            <Divider style={{ marginTop: 8 }}>
-              <Space>
-                <TableOutlined style={{ color: '#217346' }} />
-                <Text strong style={{ fontSize: 13 }}>
-                  {tableFile.displayName}
-                </Text>
-                <Tag color={rows.length > 0 ? 'green' : 'default'} style={{ fontSize: 11 }}>
-                  {rows.length > 0 ? `${rows.length} dòng` : 'Chưa có dữ liệu'}
-                </Tag>
-              </Space>
-            </Divider>
-
-            {rows.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                    <InfoCircleOutlined style={{ marginRight: 4 }} />
-                    Xuất Excel mẫu → điền dữ liệu → Import để thêm dữ liệu bảng
-                  </span>
-                }
-                style={{ margin: '12px 0' }}
-              />
-            ) : (
-              <Table
-                columns={columns}
-                dataSource={rows.map((r, i) => ({ ...r, _key: i }))}
-                rowKey="_key"
-                size="small"
-                scroll={{ x: 'max-content' }}
-                pagination={rows.length > 10 ? { pageSize: 10, size: 'small' } : false}
-                style={{ fontSize: 12 }}
-              />
-            )}
-          </div>
-        );
-      })}
-
-      {groupKeys.singleFields.length === 0 && groupKeys.tableFiles.length === 0 && (
+      {/* Per-file collapsible sections */}
+      {filePanels.length === 0 ? (
         <Empty description="Không tìm thấy key nào trong nhóm này" />
+      ) : (
+        <Collapse
+          defaultActiveKey={filePanels.map((p) => p.key)}
+          items={filePanels}
+          size="small"
+        />
       )}
     </div>
   );

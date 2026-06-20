@@ -38,7 +38,7 @@ public class TemplateRenderer : ITemplateRenderer
     }
 
     public byte[] RenderXlsx(string templatePath, Dictionary<string, string> singleFields,
-        List<Dictionary<string, string>>? tableData = null)
+        Dictionary<string, List<Dictionary<string, string>>>? tableDataBySheet = null)
     {
         var templateBytes = File.ReadAllBytes(templatePath);
         using var ms = new MemoryStream(templateBytes);
@@ -46,6 +46,11 @@ public class TemplateRenderer : ITemplateRenderer
 
         foreach (var ws in wb.Worksheets)
         {
+            // Resolve table data for this sheet via TableKey lookup
+            List<Dictionary<string, string>>? tableData = null;
+            if (tableDataBySheet != null)
+                tableDataBySheet.TryGetValue(ws.Name, out tableData);
+
             // Find table template row (row with >= 2 {{key}} cells)
             IXLRow? templateRow = null;
             foreach (var row in ws.RowsUsed().ToList())
@@ -71,12 +76,8 @@ public class TemplateRenderer : ITemplateRenderer
                 }
 
                 var insertAt = templateRow.RowNumber();
-
-                // Insert blank rows above template row to make room
                 ws.Row(insertAt).InsertRowsAbove(tableData.Count);
-                // After insert, template row shifted to insertAt + tableData.Count
 
-                // Fill inserted rows with data
                 var newTemplateRowNum = insertAt + tableData.Count;
                 for (int i = 0; i < tableData.Count; i++)
                 {
@@ -90,7 +91,6 @@ public class TemplateRenderer : ITemplateRenderer
                     }
                 }
 
-                // Delete the template row
                 ws.Row(newTemplateRowNum).Delete();
             }
 
