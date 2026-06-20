@@ -18,6 +18,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, loggerConfig) =>
     loggerConfig.ReadFrom.Configuration(context.Configuration));
 
+// Resolve workspace template path (relative to ContentRoot or absolute)
+var configuredTemplatePath = builder.Configuration["Workspace:TemplatePath"] ?? "../../export_file_temp";
+var resolvedTemplatePath = Path.IsPathRooted(configuredTemplatePath)
+    ? configuredTemplatePath
+    : Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, configuredTemplatePath));
+builder.Configuration["Workspace:TemplatePath"] = resolvedTemplatePath;
+
 // Application + Infrastructure
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

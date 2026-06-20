@@ -1,7 +1,9 @@
+using GiapTech.BindingDocx.Application.Workspace.Interfaces;
 using GiapTech.BindingDocx.Domain.Interfaces;
 using GiapTech.BindingDocx.Infrastructure.Auth;
 using GiapTech.BindingDocx.Infrastructure.Data;
 using GiapTech.BindingDocx.Infrastructure.Repositories;
+using GiapTech.BindingDocx.Infrastructure.Services.Workspace;
 using GiapTech.BindingDocx.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +30,13 @@ public static class DependencyInjection
             services.AddSingleton<IStorageProvider, MinioStorageProvider>();
         else
             services.AddSingleton<IStorageProvider, LocalStorageProvider>();
+
+        // Workspace services
+        services.AddSingleton<IWorkspaceSettings, WorkspaceSettings>();
+        services.AddSingleton<ITemplateKeyExtractor, TemplateKeyExtractor>();
+        services.AddSingleton<IExcelTemplateGenerator, ExcelTemplateGenerator>();
+        services.AddSingleton<IExcelDataParser, ExcelDataParser>();
+        services.AddSingleton<ITemplateRenderer, TemplateRenderer>();
 
         return services;
     }

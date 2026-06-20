@@ -135,7 +135,7 @@ npm run dev
 ```powershell
 docker-compose up -d
 # App: http://localhost:80
-# API: http://localhost:5000
+# API: http://localhost:5001 (port 5000 bị macOS Control Center chiếm)
 ```
 
 ### Database (Docker only)
@@ -170,26 +170,30 @@ docker-compose up -d sqlserver
 - [x] User: xem balance, packages, history token
 - [x] ProfileGroups: GET list
 - [x] Frontend: Login, MainLayout, AdminLayout
-- [x] Frontend: WorkspacePage (scaffold 3 tab)
 - [x] Frontend: ProfilePage
 - [x] Frontend: Admin Users, Token Packages, Transactions pages
 - [x] Frontend: Sidebar, Toolbar, TokenDrawer, SettingsDrawer
 - [x] Docker + docker-compose
 - [x] Nginx config
+- [x] **Workspace — Binding Engine** (2026-06-19)
+  - Backend: `WorkspaceController` — 5 endpoints (groups, keys, export-template, import-data, generate)
+  - Backend: `TemplateKeyExtractor` — đọc key từ docx (merge runs) + xlsx (phân loại single/table)
+  - Backend: `ExcelTemplateGenerator` — tạo Excel mẫu multi-sheet
+  - Backend: `ExcelDataParser` — parse Excel import → single fields + table rows
+  - Backend: `TemplateRenderer` — fill docx/xlsx, tạo ZIP output
+  - Backend: Token deduction khi generate (min 1, tính theo số row bảng)
+  - Frontend: Sidebar đổi thành Select nhóm + hiển thị file list
+  - Frontend: WorkspacePage 2 tab (Nhập dữ liệu / Preview) + footer export
+  - Frontend: KeysTab — form single fields + import bảng Excel
+  - Frontend: PreviewTab — xem lại dữ liệu trước khi xuất
+  - Fix: password hash admin (`Admin@123`)
+  - Config: Docker volume mount `export_file_temp`, port API đổi 5000→5001
 
-### Chưa làm (Core features)
-- [ ] **TemplateFile API** — upload, list, delete template per group
-- [ ] **ImportBatch API** — tạo batch, upload Excel/CSV/JSON
-- [ ] **ImportRecord API** — list records trong batch
-- [ ] **Binding Engine** — điền dữ liệu vào docx/xlsx (OpenXML + ClosedXML)
-- [ ] **Generate API** — trigger binding, trừ token, tạo output files
-- [ ] **ZIP Export API** — đóng gói output thành ZIP
+### Chưa làm
 - [ ] **Payment flow** — MockPaymentProvider, sau đó VNPay/MoMo
-- [ ] **Frontend DataTab** — TanStack Table hiển thị imported records
-- [ ] **Frontend MappingTab** — mapping UI (dropdown + drag-drop)
-- [ ] **Frontend PreviewTab** — preview docx/xlsx/pdf (Mammoth.js, PDF.js, SheetJS)
-- [ ] **Frontend Import Modal** — 4 step wizard (type → upload → mapping → preview)
-- [ ] **Frontend Generate button** — gọi API, trừ token, download ZIP
+- [ ] **Workspace group_2, group_3** — mở khóa khi template sẵn sàng
+- [ ] **Preview file thực tế** — render docx → HTML (Mammoth.js) thay vì chỉ xem key-value
+- [ ] **TemplateFile quản lý qua UI** — upload/delete template từ admin panel
 
 ---
 
@@ -198,7 +202,7 @@ docker-compose up -d sqlserver
 | Service    | Port  |
 |------------|-------|
 | Frontend   | 5173  |
-| API        | 5261 (dev) / 5000 (docker) |
+| API        | 5261 (dev) / 5001 (docker) |
 | SQL Server | 1433  |
 | MinIO      | 9000  |
 | Nginx      | 80    |

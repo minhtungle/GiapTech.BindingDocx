@@ -192,7 +192,7 @@ UPDATE Users SET Role = 'admin' WHERE Username = 'admin'
     private const string Migration002_SeedData = @"
 DECLARE @AdminId UNIQUEIDENTIFIER = NEWID()
 INSERT INTO Users (Id, Username, Email, PasswordHash, IsActive)
-VALUES (@AdminId, 'admin', 'admin@giaptech.vn', '$2a$12$AqAevrmF12xCxFCQg5MPV.R9XHWCfK9aPLHjrFxQZpbx.zb2TtyLC', 1)
+VALUES (@AdminId, 'admin', 'admin@giaptech.vn', '$2b$12$OGih9JWCFF4qdCi6LF6BCeTNVQ5htXv1K2Dwax0kgmPFgd951BAnK', 1)
 GO
 INSERT INTO UserTokens (UserId, CurrentToken)
 SELECT TOP 1 Id, 100 FROM Users WHERE Username = 'admin'

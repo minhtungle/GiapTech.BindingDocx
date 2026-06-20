@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     container_name: bindingdocx-api
     ports:
-      - "5000:8080"
+      - "5001:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=GiapTechBindingDocx;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true
@@ -36,8 +36,10 @@ services:
       - JwtSettings__ExpiryMinutes=60
       - Storage__Provider=local
       - Storage__LocalPath=/app/storage
+      - Workspace__TemplatePath=/app/export_file_temp
     volumes:
       - ./storage:/app/storage
+      - ./backend/export_file_temp:/app/export_file_temp:ro
     depends_on:
       sqlserver:
         condition: service_healthy
