@@ -157,7 +157,7 @@ docker-compose up -d sqlserver
 
 ---
 
-## Tiến độ hiện tại (2026-06-19)
+## Tiến độ hiện tại (2026-06-20)
 
 ### Hoàn thành
 - [x] Clean Architecture scaffold (4 layers)
@@ -188,12 +188,27 @@ docker-compose up -d sqlserver
   - Frontend: PreviewTab — xem lại dữ liệu trước khi xuất
   - Fix: password hash admin (`Admin@123`)
   - Config: Docker volume mount `export_file_temp`, port API đổi 5000→5001
+- [x] **Workspace — Nâng cấp nhập liệu & preview** (2026-06-20)
+  - Backend: `TemplateKeyExtractor` — per-file `Keys` list; nhiều bảng/xlsx → `TableKey = fileBase_bang_N.xlsx`
+  - Backend: `ITemplateRenderer.RenderXlsx` — nhận `tableDataBySheet: Dictionary<string, List<...>>`
+  - Backend: `ExcelTemplateGenerator` — sheet name lấy từ `TableKey` base
+  - Backend: `GenerateFilesCommand` — thêm `SyncMode`, `SingleFieldsByFile`, map tableKey→sheetName qua extractor
+  - Backend: `PreviewRenderedQuery` + Handler + endpoint `POST .../files/{fileName}/preview-rendered`
+  - Frontend: `TemplateFileInfo.keys`, `TableFileInfo.tableKey` (types)
+  - Frontend: `appStore` — `syncEnabled` (default ON), `setSingleField(fileName, key, value)` sync propagation, `getMergedSingleFields()`
+  - Frontend: `KeysTab` — Collapse per-file, sync toggle + Modal confirm khi tắt
+  - Frontend: `PreviewTab` — Select file → gọi preview-rendered API → render docx (mammoth) / xlsx (SheetJS)
+  - Frontend: `WorkspacePage.css` — fix Ant Design Tabs scroll (`.ant-tabs-content-holder` flex override)
+- [x] **Sidebar UX** (2026-06-20)
+  - Bỏ Select chọn nhóm trùng lặp ở Toolbar, chỉ giữ 1 Select ở Sidebar
+  - Auto-select nhóm 1 khi load trang (xử lý cả trường hợp refresh khi `selectedGroupId` đã persist nhưng `groupKeys` null)
+  - Options hiển thị tên nhóm thay vì ID (bỏ `optionRender`, embed `🔒` vào label)
 
 ### Chưa làm
 - [ ] **Payment flow** — MockPaymentProvider, sau đó VNPay/MoMo
 - [ ] **Workspace group_2, group_3** — mở khóa khi template sẵn sàng
-- [ ] **Preview file thực tế** — render docx → HTML (Mammoth.js) thay vì chỉ xem key-value
 - [ ] **TemplateFile quản lý qua UI** — upload/delete template từ admin panel
+- [ ] **Dọn dẹp** — xóa `DataTab.tsx`, `MappingTab.tsx` (tab cũ không còn dùng)
 
 ---
 
